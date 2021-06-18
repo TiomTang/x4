@@ -21,19 +21,28 @@ namespace x4
 
 
 
-            var list = xDoc.WhereByPath(@"t/");
-            LanguageDataDocManager language = new LanguageDataDocManager();
-            language.MergeEvent += XmlMergeEventHandler;
-            language.AppendXml(list.ToArray());
-            language.ExecuteMerge();
-            Console.WriteLine(language.GetLanguageText("{1001,1}"));
+            //var list = xDoc.WhereByPath(@"t/");
+            //LanguageDataDocManager language = new LanguageDataDocManager();
+            //language.MergeEvent += XmlMergeEventHandler;
+            //language.AppendXml(list.ToArray());
+            //language.ExecuteMerge();
+            //Console.WriteLine(language.GetLanguageText("{1001,1}"));
 
-            //var list2 = xDoc.WhereByPath(@"libraries");
-            //GameDataDocManager gameData = new GameDataDocManager();
-            //gameData.MergeEvent += XmlMergeEventHandler;
-            //gameData.AppendXml(list2.ToArray());
-            //gameData.ExecuteMerge();
+            var list2 = xDoc.WhereByPath(@"index/");
+            GameDataDocManager gameData = new GameDataDocManager();
+            gameData.MergeEvent += XmlMergeEventHandler;
+            gameData.AppendXml(list2.ToArray());
+            gameData.ExecuteMerge();
             //Console.WriteLine(gameData.GameXmlDocument.ToString());
+            foreach (var item in gameData.XPathSelect("/index/entry[@name='dummyship']"))
+            {
+                Console.WriteLine(((XElement)item).ToString());
+            }
+            foreach (var item in gameData.XPathSelect("/index/entry[@name='dummyship']/@value"))
+            {
+                Console.WriteLine(((XAttribute)item).Value);
+            }
+
 
             Console.ReadKey();
         }

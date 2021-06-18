@@ -227,5 +227,10 @@ namespace X4.Infrastructure
                     break;
             }
         }
+
+        public IEnumerable<XObject> XPathSelect(string xPath)
+        {
+            return ((IEnumerable)GameXmlDocument.Root.XPath2Select(xPath)).Cast<XObject>();
+        }
     }
 }
