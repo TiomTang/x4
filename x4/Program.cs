@@ -28,21 +28,20 @@ namespace x4
             //language.ExecuteMerge();
             //Console.WriteLine(language.GetLanguageText("{1001,1}"));
 
-            var list2 = xDoc.WhereByPath(@"index/");
+            var list2 = xDoc.WhereByPath(@"libraries/");
             GameDataDocManager gameData = new GameDataDocManager();
             gameData.MergeEvent += XmlMergeEventHandler;
             gameData.AppendXml(list2.ToArray());
             gameData.ExecuteMerge();
             //Console.WriteLine(gameData.GameXmlDocument.ToString());
-            foreach (var item in gameData.XPathSelect("/index/entry[@name='dummyship']"))
-            {
-                Console.WriteLine(((XElement)item).ToString());
-            }
-            foreach (var item in gameData.XPathSelect("/index/entry[@name='dummyship']/@value"))
-            {
-                Console.WriteLine(((XAttribute)item).Value);
-            }
-
+            //foreach (var item in gameData.XPathSelect("/index/entry[@name='dummyship']"))
+            //{
+            //    Console.WriteLine(((XElement)item).ToString());
+            //}
+            //foreach (var item in gameData.XPathSelect("/index/entry[@name='dummyship']/@value"))
+            //{
+            //    Console.WriteLine(((XAttribute)item).Value);
+            //}
 
             Console.ReadKey();
         }

@@ -182,24 +182,23 @@ namespace X4.Infrastructure
                     TimeZoneInfo.ConvertTimeFromUtc(new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(long.Parse(result[2])), TimeZoneInfo.Local),
                     result[3]);
                 });
-                List<DataFile> files = new List<DataFile>();
+                Dictionary<string,DataFile> files = new Dictionary<string, DataFile>();
                 long currentIndex = 0;
                 docs.ForEach(it =>
                 {
                     if (it.filePath.Contains(".xml"))
-                    {
-                        files.Add(new CatDataFile()
+                    {                        
+                        files[it.filePath] = new CatDataFile()
                         {
                             FilePath = catPath.Replace(".cat", ".dat"),
                             DataPath = it.filePath,
                             Size = it.size,
                             StartIndex = currentIndex
-                        });
-
+                        };
                     }
                     currentIndex += it.size;
                 });
-                return files;
+                return files.Values.ToList();
             }
             public long StartIndex { get; set; }
 
