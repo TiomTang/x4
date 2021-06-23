@@ -82,82 +82,109 @@ namespace X4.Infrastructure
         public void ExecuteMerge(bool insertOnly = false)
         {
 
-            var originaXmlDoc = this.OriginalXmlDoc;
-            var diffXmlDoc = this.DiffXmlDoc;
-            int totalCount = originaXmlDoc.Count + diffXmlDoc.Count;
-            int current = 0;
-            originaXmlDoc.ForEach(it =>
-            {
-                MergeEvent?.Invoke(this, new MergeEventArgs() { XmlName = it.Key, Index = ++current, Count = totalCount, Progress = 0 });
-                this.GameXmlDocument.Root.Add(it.Value.Root);
-                MergeEvent?.Invoke(this, new MergeEventArgs() { XmlName = it.Key, Index = current, Count = totalCount, Progress = 100 });
-            });
-
-            //List<KeyValuePair<string, XElement>> diffAddList = new List<KeyValuePair<string, XElement>>();
-            //List<KeyValuePair<string, XElement>> diffReplaceList = new List<KeyValuePair<string, XElement>>();
-            //List<KeyValuePair<string, XElement>> diffRemoveList = new List<KeyValuePair<string, XElement>>();
+            //var originaXmlDoc = this.OriginalXmlDoc;
+            //var diffXmlDoc = this.DiffXmlDoc;
+            //int totalCount = originaXmlDoc.Count + diffXmlDoc.Count;
+            //int current = 0;
+            //originaXmlDoc.ForEach(it =>
+            //{
+            //    MergeEvent?.Invoke(this, new MergeEventArgs() { XmlName = it.Key, Index = ++current, Count = totalCount, Progress = 0 });
+            //    this.GameXmlDocument.Root.Add(it.Value.Root);
+            //    MergeEvent?.Invoke(this, new MergeEventArgs() { XmlName = it.Key, Index = current, Count = totalCount, Progress = 100 });
+            //});
 
             //diffXmlDoc.ForEach(it =>
             //{
-            //    var xDoc = it.Value;
-            //    foreach (XElement ele in xDoc.Root.Elements())
+            //    MergeEvent?.Invoke(this, new MergeEventArgs() { XmlName = it.Key, Index = ++current, Count = totalCount, Progress = 0 });
+            //    int index = 1;
+            //    int count = it.Value.Root.Elements().Count();
+            //    it.Value.Root.Elements().ToList().ForEach(ele =>
             //    {
-            //        switch (ele.Name.LocalName)
+            //        MergeEvent?.Invoke(this, new MergeEventArgs() { XmlName = it.Key, Index = current, Count = totalCount, Progress = (int)Math.Floor(((double)index++ / (double)count * 100)) });
+            //        string xPathStr = ele.Attribute("sel").Value;
+            //        XObject selectResult = ((IEnumerable)GameXmlDocument.Root.XPath2Select(xPathStr)).Cast<XObject>().FirstOrDefault();
+
+            //        if (selectResult is null)
             //        {
-            //            case "add":
-            //                diffAddList.Add(KeyValuePair.Create(it.Key, ele));
-            //                break;
-            //            case "replace":
-            //                diffReplaceList.Add(KeyValuePair.Create(it.Key, ele));
-            //                break;
-            //            case "remove":
-            //                diffRemoveList.Add(KeyValuePair.Create(it.Key, ele));
-            //                break;
+            //            ExecuteMergeErrorList.Add(KeyValuePair.Create(it.Key, (ele, new Exception("未找到节点"))));
             //        }
-            //    }
+            //        else
+            //        {
+            //            try
+            //            {
+            //                switch (ele.Name.LocalName)
+            //                {
+            //                    case "add":
+            //                        this.Insert(selectResult, ele);
+            //                        break;
+            //                    case "replace":
+            //                        if (!insertOnly) this.Replace(selectResult, ele);
+            //                        break;
+            //                    case "remove":
+            //                        if (!insertOnly) this.Remove(selectResult, ele);
+            //                        break;
+            //                }
+            //            }
+            //            catch (Exception ex)
+            //            {
+            //                ExecuteMergeErrorList.Add(KeyValuePair.Create(it.Key, (ele, ex)));
+            //            }
+            //        }
+
+            //    });
             //});
 
-
-
-            diffXmlDoc.ForEach(it =>
+            int totalCount = InputXmlDoc.Count;
+            int current = 0;
+            InputXmlDoc.ForEach(it =>
             {
                 MergeEvent?.Invoke(this, new MergeEventArgs() { XmlName = it.Key, Index = ++current, Count = totalCount, Progress = 0 });
-                int index = 1;
-                int count = it.Value.Root.Elements().Count();
-                it.Value.Root.Elements().ToList().ForEach(ele =>
+                XDocument doc = it.Value;
+                if (doc.Root.Name == "diff")
                 {
-                    MergeEvent?.Invoke(this, new MergeEventArgs() { XmlName = it.Key, Index = current, Count = totalCount, Progress = (int)Math.Floor(((double)index++ / (double)count * 100)) });
-                    string xPathStr = ele.Attribute("sel").Value;
-                    XObject selectResult = ((IEnumerable)GameXmlDocument.Root.XPath2Select(xPathStr)).Cast<XObject>().FirstOrDefault();
+                    int eleIndex = 1;
+                    int eleCount = doc.Root.Elements().Count();
+                    doc.Root.Elements().ToList().ForEach(ele =>
+                    {
+                        MergeEvent?.Invoke(this, new MergeEventArgs() { XmlName = it.Key, Index = current, Count = totalCount, Progress = (int)Math.Floor(((double)eleIndex++ / (double)eleCount * 100)) });
+                        string xPathStr = ele.Attribute("sel").Value;
+                        XObject selectResult = ((IEnumerable)GameXmlDocument.Root.XPath2Select(xPathStr)).Cast<XObject>().FirstOrDefault();
 
-                    if (selectResult is null)
-                    {
-                        ExecuteMergeErrorList.Add(KeyValuePair.Create(it.Key, (ele, new Exception("未找到节点"))));
-                    }
-                    else
-                    {
-                        try
+                        if (selectResult is null)
                         {
-                            switch (ele.Name.LocalName)
+                            ExecuteMergeErrorList.Add(KeyValuePair.Create(it.Key, (ele, new Exception("未找到节点"))));
+                        }
+                        else
+                        {
+                            try
                             {
-                                case "add":
-                                    this.Insert(selectResult, ele);
-                                    break;
-                                case "replace":
-                                    if (!insertOnly) this.Replace(selectResult, ele);
-                                    break;
-                                case "remove":
-                                    if (!insertOnly) this.Remove(selectResult, ele);
-                                    break;
+                                switch (ele.Name.LocalName)
+                                {
+                                    case "add":
+                                        this.Insert(selectResult, ele);
+                                        break;
+                                    case "replace":
+                                        if (!insertOnly) this.Replace(selectResult, ele);
+                                        break;
+                                    case "remove":
+                                        if (!insertOnly) this.Remove(selectResult, ele);
+                                        break;
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                ExecuteMergeErrorList.Add(KeyValuePair.Create(it.Key, (ele, ex)));
                             }
                         }
-                        catch (Exception ex)
-                        {
-                            ExecuteMergeErrorList.Add(KeyValuePair.Create(it.Key, (ele, ex)));
-                        }
-                    }
 
-                });
+                    });
+                }
+                else
+                {
+
+                    this.GameXmlDocument.Root.Add(doc.Root);
+                    MergeEvent?.Invoke(this, new MergeEventArgs() { XmlName = it.Key, Index = current, Count = totalCount, Progress = 100 });
+                }
             });
         }
 

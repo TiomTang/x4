@@ -24,12 +24,12 @@ namespace X4.Infrastructure
         public delegate void LoadEventHandler(object sender, LoadEventArgs e);
         public static event LoadEventHandler LoadEvent;
 
-        public string GameRootPath { get;protected set; }
+        public string GameRootPath { get; protected set; }
         public static GameFileManager Load(string gameRootPath)
         {
-            if (!Directory.Exists(gameRootPath))
+            if (gameRootPath is null || !Directory.Exists(gameRootPath) || !gameRootPath.Contains("X4 Foundations"))
             {
-                throw new IOException("加载目录不存在");
+                throw new IOException("加载目录不存在或没有正确选择游戏目录");
             }
 
             var xmlDoc = new GameFileManager() { GameRootPath = gameRootPath };
@@ -53,10 +53,12 @@ namespace X4.Infrastructure
 
             int extensionsCount = extensionsDirectoryArr.Count();
             int currentExtensionsIndex = 1;
+
+            List<ExtensionsMod> extensionsMod = new List<ExtensionsMod>();
+
             foreach (var extensionsDirectory in extensionsDirectoryArr)
             {
                 List<DataFile> files = new List<DataFile>();
-
                 catFiles = Directory.GetFiles(extensionsDirectory, "ext_??.cat", SearchOption.TopDirectoryOnly);//.Where(it => !it.Contains("_sig"));
                 //如果发现cat包，优先使用该包
                 if (catFiles.Count() > 0)
@@ -77,9 +79,68 @@ namespace X4.Infrastructure
                         }
                     }
                 }
-                xmlDoc.DataFiles.Add(extensionsDirectory.Replace(extensionsPath + "\\", ""), files);
+
+                XDocument contentXml = XDocument.Load(Path.Combine(extensionsDirectory, "content.xml"));
+                extensionsMod.Add(new ExtensionsMod { ContentXml = contentXml, DataFiles = files, ExtensionsDirectory = extensionsDirectory.Replace(extensionsPath + "\\", "") });
+
+
                 LoadEvent?.Invoke(xmlDoc, new LoadEventArgs { CurrentDirectory = extensionsDirectory.Remove(0, gameRootPath.Length + 1), CurrentFileName = extensionsDirectory.Replace(extensionsPath + "\\", ""), Current = currentExtensionsIndex++, Total = extensionsCount });
 
+            }
+            //extensionsMod.Sort();
+
+            List<ExtensionsMod> GetExtensionsModSortByDependency(List<ExtensionsMod> startList)
+            {
+                //按依赖关系将mod排序，被依赖的排前面
+
+                List<ExtensionsMod> ResultDependency = new List<ExtensionsMod>();
+                List<ExtensionsMod> hasDependency = new List<ExtensionsMod>();
+                int hasCount = 0;
+                while (startList.Count > 0)
+                {
+
+                    foreach (var item in startList)
+                    {
+                        if (item.DependencyId.Length == 0)
+                        {
+                            ResultDependency.Add(item);
+                            continue;
+                        }
+                        if (startList.FindAll(it => item.DependencyId.Contains(it.Id)).Count == 0)
+                        {
+                            ResultDependency.Add(item);
+                        }
+                        else
+                        {
+                            hasDependency.Add(item);
+                        }
+                    }
+                    if (hasCount > 0 && hasDependency.Count == hasCount)
+                    {
+                        ResultDependency.AddRange(hasDependency);
+                        startList.Clear();
+                        hasDependency.Clear();
+                        break;
+                    }
+
+                    hasCount = hasDependency.Count;
+                    startList.Clear();
+                    startList.AddRange(hasDependency);
+                    hasDependency.Clear();
+                }
+                return ResultDependency;
+            }
+
+            var egoMod = GetExtensionsModSortByDependency(extensionsMod.FindAll(it => it.ExtensionsDirectory.Contains("ego_dlc")));
+            foreach (var item in egoMod)
+            {
+                xmlDoc.DataFiles[item.ExtensionsDirectory] = item.DataFiles;
+            }
+
+            var playMod = GetExtensionsModSortByDependency(extensionsMod.FindAll(it => !it.ExtensionsDirectory.Contains("ego_dlc")));
+            foreach (var item in playMod)
+            {
+                xmlDoc.DataFiles[item.ExtensionsDirectory] = item.DataFiles;
             }
             return xmlDoc;
         }
@@ -121,7 +182,7 @@ namespace X4.Infrastructure
             foreach (var item in DataFiles)
             {
                 List<DataFile> list = item.Value.Where(it => Regex.IsMatch(it.DataPath, pathPattern)).ToList();
-                
+
 
                 if (list != null && list.Count > 0)
                 {
@@ -182,12 +243,12 @@ namespace X4.Infrastructure
                     TimeZoneInfo.ConvertTimeFromUtc(new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(long.Parse(result[2])), TimeZoneInfo.Local),
                     result[3]);
                 });
-                Dictionary<string,DataFile> files = new Dictionary<string, DataFile>();
+                Dictionary<string, DataFile> files = new Dictionary<string, DataFile>();
                 long currentIndex = 0;
                 docs.ForEach(it =>
                 {
                     if (it.filePath.Contains(".xml"))
-                    {                        
+                    {
                         files[it.filePath] = new CatDataFile()
                         {
                             FilePath = catPath.Replace(".cat", ".dat"),
@@ -229,6 +290,48 @@ namespace X4.Infrastructure
                 return XDocument.Load(this.FilePath);
             }
 
+        }
+
+        private class ExtensionsMod : IComparable<ExtensionsMod>
+        {
+            public XDocument ContentXml { get; set; }
+            public List<DataFile> DataFiles { get; set; }
+            public string ExtensionsDirectory { get; set; }
+            public string Id { get => ContentXml.Root.Attribute("id").Value; }
+            public string Name { get => ContentXml.Root.Attribute("name").Value; }
+            public string[] DependencyId
+            {
+                get
+                {
+                    var dependencyEleList = ContentXml.Root.Elements("dependency").Where(it => it.Attribute("id")?.Value != null);
+                    if (dependencyEleList.Count() == 0)
+                    {
+                        return new string[0];
+                    }
+                    else
+                    {
+                        return dependencyEleList.Select(it => it.Attribute("id").Value).ToArray();
+                    }
+                }
+            }
+
+
+            public int CompareTo(ExtensionsMod other)
+            {
+                if (this.Id.Contains("ego_dlc") && other.Id.Contains("ego_dlc"))
+                {
+                    return 0;
+                }
+                if (this.Id.Contains("ego_dlc") && !other.Id.Contains("ego_dlc"))
+                {
+                    return -1;
+                }
+                if (!this.Id.Contains("ego_dlc") && other.Id.Contains("ego_dlc"))
+                {
+                    return 1;
+                }
+                return this.DependencyId.Length - other.DependencyId.Length;
+            }
         }
     }
 }
